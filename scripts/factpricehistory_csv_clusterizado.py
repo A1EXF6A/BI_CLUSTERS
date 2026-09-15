@@ -3,9 +3,6 @@
 import pandas as pd
 from pathlib import Path
 
-# --------------------------------------------------------------------------
-# Configuracion de rutas
-# --------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 INPUT_DIR = BASE_DIR / "xlsx_limpios"
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -15,9 +12,6 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_CSV = OUTPUT_DIR / "historial_precios_flat_clusterizado.csv"
 
 
-# --------------------------------------------------------------------------
-# Carga de datos fuente
-# --------------------------------------------------------------------------
 print("Cargando archivos fuente...")
 fact = pd.read_excel(INPUT_DIR / "FactPriceHistory.xlsx")
 dim_tiempo = pd.read_excel(INPUT_DIR / "DimTiempo.xlsx")
@@ -30,9 +24,6 @@ print(f"  DimMenuItem:      {len(dim_menuitem):,} filas")
 print(f"  DimRestaurante:   {len(dim_restaurante):,} filas")
 
 
-# --------------------------------------------------------------------------
-# Correccion de calidad de datos: recalculo de PriceChangePercent
-# --------------------------------------------------------------------------
 fact = fact.copy()
 recalculado = (
     (fact["NewPrice"] - fact["PreviousPrice"]) / fact["PreviousPrice"] * 100
@@ -45,9 +36,6 @@ fact["PriceChangePercent"] = recalculado
 print(f"Filas inconsistentes tras la correccion: 0 (recalculado para el 100% de las filas)")
 
 
-# --------------------------------------------------------------------------
-# Renombrado de columnas por dimension
-# --------------------------------------------------------------------------
 dim_tiempo_r = dim_tiempo.rename(columns={
     "DateKey": "fecha_key",
     "FullDate": "fecha",
@@ -90,9 +78,6 @@ fact_r = fact.rename(columns={
 })
 
 
-# --------------------------------------------------------------------------
-# Aplanamiento
-# --------------------------------------------------------------------------
 print("\nAplanando (uniendo dimensiones al hecho)...")
 plano = fact_r.merge(dim_tiempo_r, on="fecha_key", how="left")
 plano = plano.merge(dim_menuitem_r, on="item_menu_key", how="left")
@@ -111,10 +96,6 @@ plano = plano[orden_columnas]
 
 print(f"  {len(plano):,} filas x {len(plano.columns)} columnas")
 
-
-# --------------------------------------------------------------------------
-# Validacion rapida
-# --------------------------------------------------------------------------
 huerfanos_fecha = plano["fecha"].isnull().sum()
 huerfanos_item = plano["item_menu_id"].isnull().sum()
 huerfanos_restaurante = plano["restaurante_id"].isnull().sum()
@@ -129,9 +110,5 @@ if huerfanos_fecha or huerfanos_item or huerfanos_restaurante:
 else:
     print("  OK: todos los eventos de precio resolvieron sus dimensiones correctamente.")
 
-
-# --------------------------------------------------------------------------
-# Exportacion a CSV
-# --------------------------------------------------------------------------
 plano.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
 print(f"\nArchivo generado: {OUTPUT_CSV}")

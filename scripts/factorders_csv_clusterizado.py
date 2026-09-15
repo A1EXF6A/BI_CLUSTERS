@@ -1,9 +1,6 @@
 import pandas as pd
 from pathlib import Path
 
-# --------------------------------------------------------------------------
-# Configuracion de rutas
-# --------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 INPUT_DIR = BASE_DIR / "xlsx_limpios"
@@ -14,9 +11,6 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_CSV = OUTPUT_DIR / "pedidos_flat_clusterizado.csv"
 
 
-# --------------------------------------------------------------------------
-# Carga de datos fuente
-# --------------------------------------------------------------------------
 print("Cargando archivos fuente...")
 fact = pd.read_excel(INPUT_DIR / "FactOrders.xlsx")
 dim_tiempo = pd.read_excel(INPUT_DIR / "DimTiempo.xlsx")
@@ -32,10 +26,6 @@ print(f"  DimRestaurante: {len(dim_restaurante):,} filas")
 print(f"  DimMetodoPago:  {len(dim_metodopago):,} filas")
 print(f"  DimEstadoOrden: {len(dim_estadoorden):,} filas")
 
-
-# --------------------------------------------------------------------------
-# Renombrado de columnas por dimension (nomenclatura plana en español)
-# --------------------------------------------------------------------------
 dim_tiempo_r = dim_tiempo.rename(columns={
     "DateKey": "fecha_key",
     "FullDate": "fecha",
@@ -117,12 +107,9 @@ fact_r = fact.rename(columns={
     "WasDelayed": "hubo_demora",
 })
 
-fact_r["pedido_id"] = fact_r["pedido_key"]  # OrderKey == OrderID en este modelo
+fact_r["pedido_id"] = fact_r["pedido_key"]  
 
 
-# --------------------------------------------------------------------------
-# Aplanamiento (JOIN de las 5 dimensiones contra el hecho)
-# --------------------------------------------------------------------------
 print("\nAplanando (uniendo dimensiones al hecho)...")
 plano = fact_r.merge(dim_tiempo_r, on="fecha_key", how="left")
 plano = plano.merge(dim_cliente_r, on="cliente_key", how="left")
@@ -130,9 +117,6 @@ plano = plano.merge(dim_restaurante_r, on="restaurante_key", how="left")
 plano = plano.merge(dim_metodopago_r, on="metodo_pago_key", how="left")
 plano = plano.merge(dim_estadoorden_r, on="estado_key", how="left")
 
-# --------------------------------------------------------------------------
-# Orden final de columnas (identificadores primero, tal como se solicito)
-# --------------------------------------------------------------------------
 orden_columnas = [
     "pedido_key", "pedido_id",
     "fecha_key", "fecha", "dia", "nombre_dia", "es_fin_de_semana",
@@ -155,10 +139,6 @@ plano = plano[orden_columnas]
 
 print(f"  {len(plano):,} filas x {len(plano.columns)} columnas")
 
-
-# --------------------------------------------------------------------------
-# Validacion rapida de integridad tras el aplanamiento
-# --------------------------------------------------------------------------
 huerfanos_fecha = plano["fecha"].isnull().sum()
 huerfanos_cliente = plano["cliente_id"].isnull().sum()
 huerfanos_restaurante = plano["restaurante_id"].isnull().sum()
@@ -173,9 +153,5 @@ if huerfanos_fecha or huerfanos_cliente or huerfanos_restaurante:
 else:
     print("  OK: todos los pedidos resolvieron sus dimensiones correctamente.")
 
-
-# --------------------------------------------------------------------------
-# Exportacion a CSV
-# --------------------------------------------------------------------------
 plano.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
 print(f"\nArchivo generado: {OUTPUT_CSV}")

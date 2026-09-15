@@ -1,9 +1,7 @@
 import pandas as pd
 from pathlib import Path
 
-# --------------------------------------------------------------------------
-# Configuracion de rutas
-# --------------------------------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 INPUT_DIR = BASE_DIR / "xlsx_limpios"
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -16,9 +14,6 @@ RATING_MIN = 1.0
 RATING_MAX = 5.0
 
 
-# --------------------------------------------------------------------------
-# Carga de datos fuente
-# --------------------------------------------------------------------------
 print("Cargando archivos fuente...")
 fact = pd.read_excel(INPUT_DIR / "FactReviews.xlsx")
 dim_tiempo = pd.read_excel(INPUT_DIR / "DimTiempo.xlsx")
@@ -31,9 +26,6 @@ print(f"  DimCliente:     {len(dim_cliente):,} filas")
 print(f"  DimRestaurante: {len(dim_restaurante):,} filas")
 
 
-# --------------------------------------------------------------------------
-# Correccion de calidad de datos: recorte de Rating fuera de rango
-# --------------------------------------------------------------------------
 fuera_de_rango = ((fact["Rating"] < RATING_MIN) | (fact["Rating"] > RATING_MAX)).sum()
 print(f"\nFilas con Rating fuera de [{RATING_MIN}, {RATING_MAX}] detectadas: {fuera_de_rango}")
 
@@ -44,9 +36,6 @@ fuera_de_rango_post = ((fact["Rating"] < RATING_MIN) | (fact["Rating"] > RATING_
 print(f"Filas con Rating fuera de rango tras la correccion: {fuera_de_rango_post} (debe ser 0)")
 
 
-# --------------------------------------------------------------------------
-# Renombrado de columnas por dimension
-# --------------------------------------------------------------------------
 dim_tiempo_r = dim_tiempo.rename(columns={
     "DateKey": "fecha_key",
     "FullDate": "fecha",
@@ -96,9 +85,6 @@ fact_r = fact.rename(columns={
 })
 
 
-# --------------------------------------------------------------------------
-# Aplanamiento
-# --------------------------------------------------------------------------
 print("\nAplanando (uniendo dimensiones al hecho)...")
 plano = fact_r.merge(dim_tiempo_r, on="fecha_key", how="left")
 plano = plano.merge(dim_cliente_r, on="cliente_key", how="left")
@@ -120,9 +106,6 @@ plano = plano[orden_columnas]
 print(f"  {len(plano):,} filas x {len(plano.columns)} columnas")
 
 
-# --------------------------------------------------------------------------
-# Validacion rapida
-# --------------------------------------------------------------------------
 huerfanos_fecha = plano["fecha"].isnull().sum()
 huerfanos_cliente = plano["cliente_id"].isnull().sum()
 huerfanos_restaurante = plano["restaurante_id"].isnull().sum()
@@ -142,9 +125,5 @@ if huerfanos_fecha or huerfanos_cliente or huerfanos_restaurante or inconsistent
 else:
     print("  OK: todas las resenas resolvieron sus dimensiones y pasan la regla cruzada.")
 
-
-# --------------------------------------------------------------------------
-# Exportacion a CSV
-# --------------------------------------------------------------------------
 plano.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
 print(f"\nArchivo generado: {OUTPUT_CSV}")
